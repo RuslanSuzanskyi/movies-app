@@ -48,6 +48,7 @@ export const moviesApi = createApi({
     }),
     getMovie: builder.query<MovieDetails, number>({
       query: (id) => `/movies/${id}`,
+      providesTags: (_result, _error, id) => [{ type: 'Movies', id }],
     }),
     createMovie: builder.mutation<MovieDetails, CreateMovieRequest>({
       query: (body) => ({
@@ -70,7 +71,10 @@ export const moviesApi = createApi({
         method: 'PATCH',
         body: data,
       }),
-      invalidatesTags: ['Movies'],
+      invalidatesTags: (_result, _error, arg) => [
+        { type: 'Movies', id: arg.id },
+        'Movies',
+      ],
     }),
     importMovies: builder.mutation<MoviesResponse, File>({
       query: (file) => {

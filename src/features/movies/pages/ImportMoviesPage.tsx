@@ -43,10 +43,8 @@ export default function ImportMoviesPage() {
                   Import Movies
                 </label>
 
-                {/* Drag & Drop style area */}
                 <div
                   className="flex items-center justify-center w-full"
-                  onClick={() => document.getElementById('file-upload')?.click()}
                 >
                   <label
                     htmlFor="file-upload"
