@@ -146,3 +146,28 @@ The frontend supports dynamic configuration of the backend API URL via environme
     ```
 
     Remember to replace `http://localhost:8000/api/v1` with your actual backend API URL if it's different.
+
+---
+
+## ⚠️ Important: First-Time Login and Common Issues
+
+    When you first launch the backend Docker container, its database is empty. This means there are no registered users.
+
+    First-time users MUST register a new account through the application's "Sign Up" page.
+
+    Encountering "Login Failed" or "User Not Found"?
+    If you previously logged in and then restarted the backend Docker container (or you're testing on a fresh setup), your browser might still hold an invalid authentication token from a non-existent user.
+
+    To resolve this:
+
+    Open your browser's Developer Tools (usually by pressing F12 or Ctrl+Shift+I/Cmd+Option+I).
+
+    Go to the "Application" tab (or "Storage" > "Local Storage").
+
+    Locate your application's origin (e.g., http://localhost:3000) in the Local Storage list.
+
+    Find and delete the token entry. You can also clear all local storage for that domain.
+
+    Refresh the page. You will then be redirected to the login/registration page where you can create a new account.
+
+---

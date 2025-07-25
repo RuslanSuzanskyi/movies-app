@@ -8,29 +8,57 @@ import Wrapper from '../../../shared/components/layouts/Wrapper';
 export default function RegisterForm() {
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
-  const [register, { isLoading: isRegistering, error: registerError }] = useRegisterMutation();
-  const [login, { isLoading: isLoggingIn, error: loginError }] = useLoginMutation();
+  const [register, { isLoading: isRegistering }] = useRegisterMutation();
+  const [login, { isLoading: isLoggingIn }] = useLoginMutation();
 
   const [email, setEmail] = useState('');
   const [name, setName] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
 
+  const [errorMessage, setErrorMessage] = useState('');
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setErrorMessage('');
 
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      setErrorMessage('Please enter a valid email address.');
+      return;
+    }
+    if (!name.trim()) {
+      setErrorMessage('Please enter your full name.');
+      return;
+    }
+    if (password.length < 6) {
+      setErrorMessage('Password must be at least 6 characters long.');
+      return;
+    }
     if (password !== confirmPassword) {
-      alert('Passwords do not match');
+      setErrorMessage('Passwords do not match.');
       return;
     }
 
     try {
       await register({ email, name, password, confirmPassword }).unwrap();
+      
       const result = await login({ email, password }).unwrap();
       dispatch(setToken(result.token));
       navigate('/movies');
-    } catch (err) {
-      alert('Registration or login failed');
+    } catch (err: any) { 
+      console.error('Registration or login failed:', err);
+      
+      if (err.data && err.data.message) {
+        if (err.data.message.includes('user with this email already exists') ||
+            err.data.message.includes('duplicate key') ||
+            err.data.message.includes('email is already taken')) {
+          setErrorMessage('A user with this email already exists. Please try logging in or use a different email.');
+        } else {
+          setErrorMessage(`Registration failed: ${err.data.message}`);
+        }
+      } else {
+        setErrorMessage('Registration failed. Please try again. Network or server error.');
+      }
     }
   };
 
@@ -52,7 +80,7 @@ export default function RegisterForm() {
                   onChange={e => setEmail(e.target.value)}
                   className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary-600 focus:border-primary-600 block w-full p-2.5"
                   required
-                />  
+                />
               </div>
               <div>
                 <label className="block mb-2 text-sm font-medium text-gray-900">Full Name</label>
@@ -63,7 +91,7 @@ export default function RegisterForm() {
                   onChange={e => setName(e.target.value)}
                   className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary-600 focus:border-primary-600 block w-full p-2.5"
                   required
-                />  
+                />
               </div>
               <div>
                 <label className="block mb-2 text-sm font-medium text-gray-900">Password</label>
@@ -74,7 +102,7 @@ export default function RegisterForm() {
                   onChange={e => setPassword(e.target.value)}
                   className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary-600 focus:border-primary-600 block w-full p-2.5"
                   required
-                />  
+                />
               </div>
               <div className="mb-8">
                 <label className="block mb-2 text-sm font-medium text-gray-900">Confirm Password</label>
@@ -85,7 +113,7 @@ export default function RegisterForm() {
                   onChange={e => setConfirmPassword(e.target.value)}
                   className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary-600 focus:border-primary-600 block w-full p-2.5"
                   required
-                />  
+                />
               </div>
               <button
                 type="submit"
@@ -95,8 +123,10 @@ export default function RegisterForm() {
                 {isRegistering || isLoggingIn ? 'Processing...' : 'Register'}
               </button>
 
-              {(registerError || loginError) && (
-                <p className="text-red-600 mt-2">Error occurred during registration or login</p>
+              {errorMessage && (
+                <div className="p-4 text-sm text-red-700 bg-red-100 rounded-lg" role="alert">
+                  {errorMessage}
+                </div>
               )}
 
               <p className="text-sm font-light text-gray-500">
@@ -106,11 +136,9 @@ export default function RegisterForm() {
                 </Link>
               </p>
             </form>
-          </div> 
-        </div>  
+          </div>
+        </div>
       </div>
-        
     </Wrapper>
-    
   );
-}
+};

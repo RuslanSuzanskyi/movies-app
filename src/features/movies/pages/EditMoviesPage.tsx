@@ -1,18 +1,23 @@
 import { useState, useEffect } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import { useGetMovieQuery, useUpdateMovieMutation } from "../moviesApi";
 import Wrapper from "../../../shared/components/layouts/Wrapper";
 
 export default function EditMoviePage() {
   const { id } = useParams<{ id: string }>();
-  const navigate = useNavigate();
-  const { data: movie, isLoading } = useGetMovieQuery(Number(id));
+  const MIN_YEAR = 1850;
+  const MAX_YEAR = 2021;
+
+  const { data: movie, isLoading: isMovieLoading } = useGetMovieQuery(Number(id));
   const [updateMovie, { isLoading: isUpdating }] = useUpdateMovieMutation();
 
   const [title, setTitle] = useState('');
   const [year, setYear] = useState('');
   const [format, setFormat] = useState('');
   const [actors, setActors] = useState<string>('');
+
+  const [errorMessage, setErrorMessage] = useState<string>('');
+  const [successMessage, setSuccessMessage] = useState<string>('');
 
   useEffect(() => {
     if (movie && movie.data) {
@@ -26,23 +31,64 @@ export default function EditMoviePage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setErrorMessage('');
+    setSuccessMessage('');
+
+    const trimmedTitle = title.trim();
+    if (!trimmedTitle) {
+      setErrorMessage('Movie title cannot be empty or just spaces.');
+      return;
+    }
+
+    const movieYear = Number(year);
+    if (isNaN(movieYear) || movieYear < MIN_YEAR || movieYear > MAX_YEAR) {
+      setErrorMessage(`Year must be between ${MIN_YEAR} and ${MAX_YEAR}.`);
+      return;
+    }
+
+    const actorList = actors
+      .split(',')
+      .map((a) => a.trim())
+      .filter(Boolean);
+
+    const actorRegex = /^[a-zA-Z\s\-.']+$/;
+
+    for (const actor of actorList) {
+      if (!actorRegex.test(actor)) {
+        setErrorMessage("Actor names can only contain letters, spaces, hyphens (-), dots (.), and apostrophes (').");
+        return;
+      }
+    }
+
+    if (actorList.length === 0) {
+      setErrorMessage('Please enter at least one actor.');
+      return;
+    }
+
     try {
       await updateMovie({
         id: Number(id),
         data: {
-          title,
-          year: Number(year),
+          title: trimmedTitle,
+          year: movieYear,
           format: format as 'VHS' | 'DVD' | 'Blu-ray',
-          actors: actors.split(",").map(actor => actor.trim()),
+          actors: actorList,
         },
       }).unwrap();
-      navigate("/movies");
-    } catch {
-      alert("Failed to update movie");
+
+      setSuccessMessage('Movie updated successfully!');
+    } catch (error: any) {
+      console.error("Failed to update movie:", error);
+      if (error.data && error.data.message && error.data.message.includes('already exists')) {
+        setErrorMessage('The movie with this title already exists.');
+      } else {
+        setErrorMessage('Failed to update movie. Please check your data and try again.');
+      }
     }
   };
 
-  if (isLoading) return <p>Loading...</p>;
+  if (isMovieLoading) return <p>Loading movie data...</p>;
+  if (!movie || !movie.data) return <p>Movie not found.</p>;
 
   return (
     <Wrapper>
@@ -56,6 +102,18 @@ export default function EditMoviePage() {
               Back to Movies
             </Link>
             <h2 className="mb-4 text-xl font-bold text-gray-900">Edit Movie</h2>
+
+            {errorMessage && (
+              <div className="p-4 mb-4 text-sm text-red-700 bg-red-100 rounded-lg" role="alert">
+                {errorMessage}
+              </div>
+            )}
+            {successMessage && (
+              <div className="p-4 mb-4 text-sm text-green-700 bg-green-100 rounded-lg" role="alert">
+                {successMessage}
+              </div>
+            )}
+
             <form onSubmit={handleSubmit} className="space-y-4 md:space-y-6">
               <div>
                 <label className="block mb-2 text-sm font-medium text-gray-900">Title</label>
@@ -66,7 +124,7 @@ export default function EditMoviePage() {
                   onChange={e => setTitle(e.target.value)}
                   className="bg-gray-50 border border-gray-300 text-gray-900 rounded-lg focus:ring-primary-600 focus:border-primary-600 block w-full p-2.5"
                   required
-                />  
+                />
               </div>
               <div>
                 <label className="block mb-2 text-sm font-medium text-gray-900">Year</label>
@@ -74,10 +132,13 @@ export default function EditMoviePage() {
                   type="number"
                   placeholder="Year"
                   value={year}
+                  min={MIN_YEAR}
+                  max={MAX_YEAR}
                   onChange={e => setYear(e.target.value)}
                   className="bg-gray-50 border border-gray-300 text-gray-900 rounded-lg focus:ring-primary-600 focus:border-primary-600 block w-full p-2.5"
                   required
-                />  
+                />
+                <p className="mt-1 text-xs text-gray-500">Year must be between {MIN_YEAR} and {MAX_YEAR}.</p>
               </div>
               <div>
                 <label className="block mb-2 text-sm font-medium text-gray-900">Format</label>
@@ -91,7 +152,7 @@ export default function EditMoviePage() {
                   <option value="VHS">VHS</option>
                   <option value="DVD">DVD</option>
                   <option value="Blu-ray">Blu-ray</option>
-                </select>  
+                </select>
               </div>
               <div>
                 <label className="block mb-2 text-sm font-medium text-gray-900">Actors (comma separated)</label>
@@ -102,7 +163,7 @@ export default function EditMoviePage() {
                   onChange={e => setActors(e.target.value)}
                   className="p-2.5 w-full text-sm text-gray-900 bg-gray-50 rounded-lg border border-gray-300 focus:ring-primary-500 focus:border-primary-500"
                   required
-                />  
+                />
               </div>
               <button
                 type="submit"

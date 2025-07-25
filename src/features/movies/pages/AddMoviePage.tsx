@@ -1,49 +1,78 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { useCreateMovieMutation } from '../moviesApi';
 import Wrapper from '../../../shared/components/layouts/Wrapper';
 
 export default function AddMoviePage() {
-  const currentYear = new Date().getFullYear();
+  const MIN_YEAR = 1850;
+  const MAX_YEAR = 2021;
+
   const [title, setTitle] = useState<string>('');
-  const [year, setYear] = useState<number>(currentYear);
+  const [year, setYear] = useState<number>(MAX_YEAR);
   const [format, setFormat] = useState<'VHS' | 'DVD' | 'Blu-ray'>('DVD');
   const [actors, setActors] = useState<string>('');
 
+  const [errorMessage, setErrorMessage] = useState<string>('');
+  const [successMessage, setSuccessMessage] = useState<string>('');
+
   const [createMovie, { isLoading }] = useCreateMovieMutation();
-  const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setErrorMessage('');
+    setSuccessMessage('');
 
-    if (year < 1900 || year > currentYear) {
-      alert(`Please enter a valid year between 1900 and ${currentYear}`);
+    const trimmedTitle = title.trim();
+    if (!trimmedTitle) {
+      setErrorMessage('Movie title cannot be empty or just spaces.');
       return;
     }
+
+    if (year < MIN_YEAR || year > MAX_YEAR) {
+      setErrorMessage(`Year must be between ${MIN_YEAR} and ${MAX_YEAR}.`);
+      return;
+    };
 
     const actorList = actors
       .split(',')
       .map((a) => a.trim())
       .filter(Boolean);
 
+    const actorRegex = /^[a-zA-Z\s\-.']+$/;
+
+    for (const actor of actorList) {
+      if (!actorRegex.test(actor)) {
+        setErrorMessage("Actor names can only contain letters, spaces, hyphens (-), dots (.), and apostrophes (').");
+        return;
+      }
+    };
+
     if (actorList.length === 0) {
-      alert('Please enter at least one actor');
+      setErrorMessage('Please enter at least one actor.');
       return;
-    }
+    };
 
     try {
       await createMovie({
-        title,
+        title: trimmedTitle,
         year,
         format,
         actors: actorList,
       }).unwrap();
 
-      navigate('/movies');
-    } catch (error) {
+      setSuccessMessage('Movie created successfully!');
+      setTitle('');
+      setYear(MAX_YEAR);
+      setFormat('DVD');
+      setActors('');
+    } catch (error: any) {
       console.error('Error creating movie:', error);
-      alert('Failed to create movie. Check your data and try again.');
-    }
+      if (error.data && error.data.message && error.data.message.includes('already exists')) {
+        setErrorMessage('The movie with this title already exists.');
+      } else {
+        setErrorMessage('Failed to create movie. Please check your data and try again.');
+      }
+    };
   };
 
   return (
@@ -58,6 +87,18 @@ export default function AddMoviePage() {
               Back to Movies
             </Link>
             <h2 className="mb-4 text-xl font-bold text-gray-900">Add New Movie</h2>
+
+            {errorMessage && (
+              <div className="p-4 mb-4 text-sm text-red-700 bg-red-100 rounded-lg" role="alert">
+                {errorMessage}
+              </div>
+            )}
+            {successMessage && (
+              <div className="p-4 mb-4 text-sm text-green-700 bg-green-100 rounded-lg" role="alert">
+                {successMessage}
+              </div>
+            )}
+
             <form onSubmit={handleSubmit} className="space-y-4 md:space-y-6">
               <div>
                 <label className="block mb-2 text-sm font-medium text-gray-900">Title</label>
@@ -76,12 +117,13 @@ export default function AddMoviePage() {
                   type="number"
                   placeholder="Year"
                   value={year}
-                  min={1900}
-                  max={currentYear}
+                  min={MIN_YEAR}
+                  max={MAX_YEAR}
                   onChange={(e) => setYear(Number(e.target.value))}
                   className="bg-gray-50 border border-gray-300 text-gray-900 rounded-lg focus:ring-primary-600 focus:border-primary-600 block w-full p-2.5"
                   required
                 />
+                <p className="mt-1 text-xs text-gray-500">Year must be between {MIN_YEAR} and {MAX_YEAR}.</p>
               </div>
               <div>
                 <label className="block mb-2 text-sm font-medium text-gray-900">Format</label>
@@ -115,10 +157,10 @@ export default function AddMoviePage() {
               >
                 {isLoading ? 'Adding...' : 'Add Movie'}
               </button>
-            </form>  
+            </form>
           </div>
         </div>
       </div>
     </Wrapper>
   );
-}
+};

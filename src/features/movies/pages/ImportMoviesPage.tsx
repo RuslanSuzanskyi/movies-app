@@ -1,24 +1,52 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { useImportMoviesMutation } from '../moviesApi';
 import Wrapper from '../../../shared/components/layouts/Wrapper';
 
 export default function ImportMoviesPage() {
   const [file, setFile] = useState<File | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string>('');
+  const [successMessage, setSuccessMessage] = useState<string>('');
+
   const [importMovies, { isLoading }] = useImportMoviesMutation();
-  const navigate = useNavigate();
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setErrorMessage('');
+    setSuccessMessage('');
+    const selectedFile = e.target.files?.[0] || null;
+    setFile(selectedFile);
+
+    if (selectedFile && selectedFile.size === 0) {
+      setErrorMessage('The file is empty.');
+      setFile(null);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setErrorMessage('');
+    setSuccessMessage('');
+    if (!file) {
+      setErrorMessage('Please select a file to import.');
+      return;
+    }
 
-    if (!file) return;
+    if (file.size === 0) {
+      setErrorMessage('The file is empty.');
+      return;
+    };
 
     try {
       await importMovies(file).unwrap();
-      navigate('/movies');
-    } catch (error) {
+      setSuccessMessage('Movies imported successfully!');
+      setFile(null);
+    } catch (error: any) {
       console.error('Error importing movies:', error);
-      alert('Failed to import movies. Please check the file and try again.');
+      if (error.data && error.data.message) {
+        setErrorMessage(`Failed to import movies: ${error.data.message}`);
+      } else {
+        setErrorMessage('Failed to import movies. Please check the file format and try again.');
+      }
     }
   };
 
@@ -34,13 +62,26 @@ export default function ImportMoviesPage() {
               Back to Movies
             </Link>
 
+            <h2 className="mb-4 text-xl font-bold text-gray-900">Import Movies</h2>
+
+            {errorMessage && (
+              <div className="p-4 mb-4 text-sm text-red-700 bg-red-100 rounded-lg" role="alert">
+                {errorMessage}
+              </div>
+            )}
+            {successMessage && (
+              <div className="p-4 mb-4 text-sm text-green-700 bg-green-100 rounded-lg" role="alert">
+                {successMessage}
+              </div>
+            )}
+
             <form onSubmit={handleSubmit} className="space-y-6">
               <div>
                 <label
                   htmlFor="file-upload"
                   className="block mb-2 text-sm font-medium text-gray-900"
                 >
-                  Import Movies
+                  Upload .txt file
                 </label>
 
                 <div
@@ -75,7 +116,7 @@ export default function ImportMoviesPage() {
                       id="file-upload"
                       type="file"
                       accept=".txt"
-                      onChange={(e) => setFile(e.target.files?.[0] || null)}
+                      onChange={handleFileChange}
                       className="hidden"
                       required
                     />
@@ -91,7 +132,7 @@ export default function ImportMoviesPage() {
 
               <button
                 type="submit"
-                disabled={!file || isLoading}
+                disabled={!file || isLoading || !!errorMessage}
                 className="w-full text-white bg-blue-600 hover:bg-blue-700 focus:ring-4 focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center transition-colors duration-300 ease-in-out"
               >
                 {isLoading ? 'Importing...' : 'Import Movies'}
@@ -102,4 +143,4 @@ export default function ImportMoviesPage() {
       </div>
     </Wrapper>
   );
-};
+}

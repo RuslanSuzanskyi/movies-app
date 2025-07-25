@@ -41,6 +41,7 @@ export const moviesApi = createApi({
         if (actor) params.append('actor', actor);
         params.append('sort', sort);
         params.append('order', order);
+        params.append('limit', '999999');
 
         return `/movies?${params.toString()}`;
       },
